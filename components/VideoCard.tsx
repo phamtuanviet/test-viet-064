@@ -20,13 +20,21 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
   const playIconTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Detect screen size on client only (avoids SSR mismatch)
-  useEffect(() => {
-    const check = () => setIsDesktop(window.innerWidth >= 1024);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
+useEffect(() => {
+  const media = window.matchMedia('(min-width: 1024px)');
 
+  const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
+    setIsDesktop(e.matches);
+  };
+
+  handleChange(media);
+
+  media.addEventListener('change', handleChange);
+
+  return () => {
+    media.removeEventListener('change', handleChange);
+  };
+}, []);
   // Auto play/pause — ONE ref, ONE video element
   useEffect(() => {
     const vid = videoRef.current;
@@ -259,7 +267,7 @@ const MusicTicker = ({ small }: { small?: boolean }) =>
   // ─── MOBILE layout ─────────────────────────────────────────────
   return (
     <div
-      className="video-snap-item relative w-full"
+      className="relative w-screen h-screen overflow-hidden bg-black"
       style={{ height: '100dvh' }}
       onClick={togglePlay}
     >
@@ -304,7 +312,7 @@ const MusicTicker = ({ small }: { small?: boolean }) =>
         onClick={(e) => e.stopPropagation()}
       >
         <ActionButtons video={video} />
-      </div>
+      </div> 
     </div>
   );
 }
