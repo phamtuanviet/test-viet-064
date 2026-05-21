@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useRef, useEffect, useState, useCallback } from 'react';
-import { Play, Pause, VolumeX, Volume2 } from 'lucide-react';
-import { Video } from '@/types/video';
-import ActionButtons from './ActionButtons';
+import { useRef, useEffect, useState, useCallback } from "react";
+import { Play, Pause, VolumeX, Volume2 } from "lucide-react";
+import { Video } from "@/types/video";
+import ActionButtons from "./ActionButtons";
 
 interface VideoCardProps {
   video: Video;
@@ -15,50 +15,65 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [progress, setProgress] = useState(0);
-  const [showPlayIcon, setShowPlayIcon] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [overlayIcon, setOverlayIcon] = useState<"play" | "pause" | null>(null);
   const playIconTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Detect screen size on client only (avoids SSR mismatch)
-useEffect(() => {
-  const media = window.matchMedia('(min-width: 1024px)');
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
 
-  const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
-    setIsDesktop(e.matches);
-  };
+    const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsDesktop(e.matches);
+    };
 
-  handleChange(media);
+    handleChange(media);
 
-  media.addEventListener('change', handleChange);
+    media.addEventListener("change", handleChange);
 
-  return () => {
-    media.removeEventListener('change', handleChange);
-  };
-}, []);
+    return () => {
+      media.removeEventListener("change", handleChange);
+    };
+  }, []);
   // Auto play/pause — ONE ref, ONE video element
   useEffect(() => {
     const vid = videoRef.current;
+
     if (!vid) return;
+
+    vid.muted = true;
+
     if (isActive) {
-      vid.play().then(() => setIsPlaying(true)).catch(() => {});
+      const playPromise = vid.play();
+
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch(() => {});
+      }
     } else {
       vid.pause();
       setIsPlaying(false);
     }
   }, [isActive]);
-
   const togglePlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
     if (playIconTimer.current) clearTimeout(playIconTimer.current);
     if (vid.paused) {
-      vid.play().then(() => setIsPlaying(true)).catch(() => {});
+      vid.play();
+      setIsPlaying(true);
+      setOverlayIcon("play");
     } else {
       vid.pause();
       setIsPlaying(false);
+      setOverlayIcon("pause");
     }
-    setShowPlayIcon(true);
-    playIconTimer.current = setTimeout(() => setShowPlayIcon(false), 1200);
+    playIconTimer.current = setTimeout(() => {
+      setOverlayIcon(null);
+    }, 500);
   }, []);
 
   const toggleMute = useCallback((e: React.MouseEvent) => {
@@ -77,25 +92,32 @@ useEffect(() => {
     setProgress((vid.currentTime / vid.duration) * 100);
   }, []);
 
-  const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-    const vid = videoRef.current;
-    if (!vid) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    vid.currentTime = ((e.clientX - rect.left) / rect.width) * vid.duration;
-  }, []);
+  const handleProgressClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      const vid = videoRef.current;
+      if (!vid) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      vid.currentTime = ((e.clientX - rect.left) / rect.width) * vid.duration;
+    },
+    [],
+  );
 
   // ─── Shared UI pieces ──────────────────────────────────────────
   const PlayPauseOverlay = () =>
-    showPlayIcon ? (
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-fade-in">
+    overlayIcon ? (
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div
-          className="w-16 h-16 rounded-full flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+          className="w-16 h-16 rounded-full flex items-center justify-center animate-scale-fade"
+          style={{
+            background: "rgba(0,0,0,0.55)",
+          }}
         >
-          {isPlaying
-            ? <Pause size={28} fill="white" color="white" />
-            : <Play  size={28} fill="white" color="white" />}
+          {overlayIcon === "play" ? (
+            <Play size={28} fill="white" color="white" />
+          ) : (
+            <Pause size={28} fill="white" color="white" />
+          )}
         </div>
       </div>
     ) : null;
@@ -103,74 +125,83 @@ useEffect(() => {
   const MuteBtn = ({ onClick }: { onClick: (e: React.MouseEvent) => void }) => (
     <button
       onClick={onClick}
-      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-      onTouchStart={(e) => { e.stopPropagation(); }}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      onTouchStart={(e) => {
+        e.stopPropagation();
+      }}
       className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition-transform"
       style={{
-        background: 'rgba(0,0,0,0.5)',
-        backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        WebkitTapHighlightColor: 'transparent',
-        touchAction: 'manipulation',
-        userSelect: 'none',
+        background: "rgba(0,0,0,0.5)",
+        backdropFilter: "blur(8px)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        WebkitTapHighlightColor: "transparent",
+        touchAction: "manipulation",
+        userSelect: "none",
       }}
     >
-      {isMuted ? <VolumeX size={16} color="white" /> : <Volume2 size={16} color="white" />}
+      {isMuted ? (
+        <VolumeX size={16} color="white" />
+      ) : (
+        <Volume2 size={16} color="white" />
+      )}
     </button>
   );
 
   const ProgressBar = () => (
     <div
       className="w-full h-0.5 rounded-full cursor-pointer overflow-hidden"
-      style={{ background: 'rgba(255,255,255,0.2)' }}
+      style={{ background: "rgba(255,255,255,0.2)" }}
       onClick={handleProgressClick}
     >
       <div
         className="h-full rounded-full"
         style={{
           width: `${progress}%`,
-          background: 'linear-gradient(90deg, #FF2D55, #7C3AED)',
-          transition: 'width 0.2s linear',
+          background: "linear-gradient(90deg, #FF2D55, #7C3AED)",
+          transition: "width 0.2s linear",
         }}
       />
     </div>
   );
 
-const MusicTicker = ({ small }: { small?: boolean }) =>
-  video.musicName ? (
-    <div
-      className="flex items-center gap-2 rounded-full overflow-hidden"
-      style={{
-        background: 'rgba(0,0,0,0.55)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        width: 'fit-content',
-        maxWidth: small ? '220px' : '260px',
-        padding: small ? '4px 12px' : '6px 14px',
-      }}
-    >
-      <span
+  const MusicTicker = ({ small }: { small?: boolean }) =>
+    video.musicName ? (
+      <div
+        className="flex items-center gap-2 rounded-full overflow-hidden"
         style={{
-          fontSize: small ? '11px' : '12px',
-          flexShrink: 0,
+          background: "rgba(0,0,0,0.55)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          width: "fit-content",
+          maxWidth: small ? "220px" : "260px",
+          padding: small ? "4px 12px" : "6px 14px",
         }}
       >
-        🎵
-      </span>
+        <span
+          style={{
+            fontSize: small ? "11px" : "12px",
+            flexShrink: 0,
+          }}
+        >
+          🎵
+        </span>
 
-      <span
-        style={{
-          fontSize: small ? '11px' : '12px',
-          fontFamily: 'var(--font-dm-sans)',
-          color: 'white',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {video.musicName}
-      </span>
-    </div>
-  ) : null;
+        <span
+          style={{
+            fontSize: small ? "11px" : "12px",
+            fontFamily: "var(--font-dm-sans)",
+            color: "white",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {video.musicName}
+        </span>
+      </div>
+    ) : null;
 
   // Callback ref: set muted=true on mount so React never controls it via props
   const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
@@ -186,6 +217,7 @@ const MusicTicker = ({ small }: { small?: boolean }) =>
       className="w-full h-full object-cover"
       loop
       playsInline
+      autoPlay={isActive}
       preload="auto"
       onTimeUpdate={handleTimeUpdate}
     />
@@ -196,17 +228,18 @@ const MusicTicker = ({ small }: { small?: boolean }) =>
     return (
       <div
         className="video-snap-item flex items-center justify-center relative"
-        style={{ height: '100dvh', background: 'var(--bg-primary)' }}
+        style={{ height: "100dvh", background: "var(--bg-primary)" }}
       >
         {/* 9:16 frame */}
         <div
           className="relative rounded-2xl overflow-hidden"
           style={{
-            aspectRatio: '9/16',
-            height: 'min(90vh, calc(90vw * 9/16))',
-            maxHeight: '90vh',
-            background: '#000',
-            boxShadow: '0 0 0 1px rgba(255,255,255,0.06), 0 40px 80px rgba(0,0,0,0.7)',
+            aspectRatio: "9/16",
+            height: "min(90vh, calc(90vw * 9/16))",
+            maxHeight: "90vh",
+            background: "#000",
+            boxShadow:
+              "0 0 0 1px rgba(255,255,255,0.06), 0 40px 80px rgba(0,0,0,0.7)",
           }}
           onClick={togglePlay}
         >
@@ -221,26 +254,31 @@ const MusicTicker = ({ small }: { small?: boolean }) =>
                 src={video.avatar}
                 alt={video.authorName}
                 className="w-9 h-9 rounded-full object-cover"
-                style={{ border: '2px solid rgba(255,255,255,0.3)' }}
+                style={{ border: "2px solid rgba(255,255,255,0.3)" }}
               />
-              <p className="font-bold text-white text-sm" style={{ fontFamily: 'var(--font-syne)' }}>
+              <p
+                className="font-bold text-white text-sm"
+                style={{ fontFamily: "var(--font-syne)" }}
+              >
                 @{video.authorName}
               </p>
             </div>
             <p
               className="text-white text-sm mb-4 leading-relaxed"
               style={{
-                fontFamily: 'var(--font-dm-sans)',
-                textShadow: '0 1px 4px rgba(0,0,0,0.8)',
-                display: '-webkit-box',
+                fontFamily: "var(--font-dm-sans)",
+                textShadow: "0 1px 4px rgba(0,0,0,0.8)",
+                display: "-webkit-box",
                 WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
               }}
             >
               {video.description}
             </p>
-            <div className="mb-4"><MusicTicker /></div>
+            <div className="mb-4">
+              <MusicTicker />
+            </div>
             <ProgressBar />
           </div>
 
@@ -254,8 +292,8 @@ const MusicTicker = ({ small }: { small?: boolean }) =>
         <div
           className="absolute flex flex-col items-center"
           style={{
-            right: 'calc(50% - min(45vh, calc(45vw * 9/16)) - 80px)',
-            bottom: '80px',
+            right: "calc(50% - min(45vh, calc(45vw * 9/16)) - 80px)",
+            bottom: "80px",
           }}
         >
           <ActionButtons video={video} />
@@ -268,7 +306,7 @@ const MusicTicker = ({ small }: { small?: boolean }) =>
   return (
     <div
       className="relative w-screen h-screen overflow-hidden bg-black"
-      style={{ height: '100dvh' }}
+      style={{ height: "100dvh" }}
       onClick={togglePlay}
     >
       {videoEl}
@@ -276,43 +314,52 @@ const MusicTicker = ({ small }: { small?: boolean }) =>
       <PlayPauseOverlay />
 
       {/* Mute — top right */}
-      <div className="absolute top-12 right-4" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+      <div
+        className="absolute top-12 right-4"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <MuteBtn onClick={toggleMute} />
       </div>
 
       {/* Info — bottom left */}
       <div
         className="absolute bottom-0 left-0 right-16 p-4"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 72px)' }}
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 72px)" }}
       >
-        <p className="font-bold text-white mb-1.5" style={{ fontFamily: 'var(--font-syne)', fontSize: '15px' }}>
+        <p
+          className="font-bold text-white mb-1.5"
+          style={{ fontFamily: "var(--font-syne)", fontSize: "15px" }}
+        >
           @{video.authorName}
         </p>
         <p
           className="text-white text-sm mb-3 leading-snug"
           style={{
-            fontFamily: 'var(--font-dm-sans)',
-            textShadow: '0 1px 4px rgba(0,0,0,0.9)',
-            display: '-webkit-box',
+            fontFamily: "var(--font-dm-sans)",
+            textShadow: "0 1px 4px rgba(0,0,0,0.9)",
+            display: "-webkit-box",
             WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
           }}
         >
           {video.description}
         </p>
-        <div className="mb-3"><MusicTicker small /></div>
+        <div className="mb-3">
+          <MusicTicker small />
+        </div>
         <ProgressBar />
       </div>
 
       {/* Action buttons — right */}
       <div
         className="absolute right-3 flex flex-col items-center gap-1"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 76px)' }}
+        style={{ bottom: "calc(env(safe-area-inset-bottom) + 76px)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <ActionButtons video={video} />
-      </div> 
+      </div>
     </div>
   );
 }
