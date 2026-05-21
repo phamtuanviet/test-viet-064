@@ -54,11 +54,13 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
   }, []);
 
   const toggleMute = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     const vid = videoRef.current;
     if (!vid) return;
-    vid.muted = !vid.muted;
-    setIsMuted(vid.muted);
+    const next = !vid.muted;
+    vid.muted = next;
+    setIsMuted(next); // only for icon, doesn't re-render <video>
   }, []);
 
   const handleTimeUpdate = useCallback(() => {
@@ -93,11 +95,16 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
   const MuteBtn = ({ onClick }: { onClick: (e: React.MouseEvent) => void }) => (
     <button
       onClick={onClick}
-      className="w-9 h-9 rounded-full flex items-center justify-center"
+      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      onTouchStart={(e) => { e.stopPropagation(); }}
+      className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition-transform"
       style={{
         background: 'rgba(0,0,0,0.5)',
         backdropFilter: 'blur(8px)',
         border: '1px solid rgba(255,255,255,0.1)',
+        WebkitTapHighlightColor: 'transparent',
+        touchAction: 'manipulation',
+        userSelect: 'none',
       }}
     >
       {isMuted ? <VolumeX size={16} color="white" /> : <Volume2 size={16} color="white" />}
@@ -121,39 +128,55 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
     </div>
   );
 
-  const MusicTicker = ({ small }: { small?: boolean }) =>
-    video.musicName ? (
-      <div
-        className="flex items-center gap-2 rounded-full overflow-hidden"
+const MusicTicker = ({ small }: { small?: boolean }) =>
+  video.musicName ? (
+    <div
+      className="flex items-center gap-2 rounded-full overflow-hidden"
+      style={{
+        background: 'rgba(0,0,0,0.55)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        width: 'fit-content',
+        maxWidth: small ? '220px' : '260px',
+        padding: small ? '4px 12px' : '6px 14px',
+      }}
+    >
+      <span
         style={{
-          background: 'rgba(0,0,0,0.45)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          width: 'fit-content',
-          maxWidth: small ? '220px' : '100%',
-          padding: small ? '4px 12px' : '6px 14px',
+          fontSize: small ? '11px' : '12px',
+          flexShrink: 0,
         }}
       >
-        <span style={{ fontSize: small ? '11px' : '12px' }}>🎵</span>
-        <div className="overflow-hidden" style={{ maxWidth: '160px' }}>
-          <span
-            className="ticker-content text-white"
-            style={{ fontSize: small ? '11px' : '12px', fontFamily: 'var(--font-dm-sans)' }}
-          >
-            {video.musicName}&nbsp;&nbsp;&nbsp;{video.musicName}&nbsp;&nbsp;&nbsp;
-          </span>
-        </div>
-      </div>
-    ) : null;
+        🎵
+      </span>
+
+      <span
+        style={{
+          fontSize: small ? '11px' : '12px',
+          fontFamily: 'var(--font-dm-sans)',
+          color: 'white',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {video.musicName}
+      </span>
+    </div>
+  ) : null;
+
+  // Callback ref: set muted=true on mount so React never controls it via props
+  const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
+    (videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = el;
+    if (el) el.muted = true;
+  }, []);
 
   // ─── Single <video> element ────────────────────────────────────
   const videoEl = (
     <video
-      ref={videoRef}
+      ref={setVideoRef}
       src={video.videoUrl}
       className="w-full h-full object-cover"
       loop
-      muted={isMuted}
       playsInline
       preload="auto"
       onTimeUpdate={handleTimeUpdate}
@@ -245,7 +268,7 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
       <PlayPauseOverlay />
 
       {/* Mute — top right */}
-      <div className="absolute top-12 right-4" onClick={(e) => e.stopPropagation()}>
+      <div className="absolute top-12 right-4" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
         <MuteBtn onClick={toggleMute} />
       </div>
 
