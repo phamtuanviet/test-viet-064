@@ -103,7 +103,7 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
     [],
   );
 
-  // ─── Shared UI pieces ──────────────────────────────────────────
+  // ─── Shared UI pieces ───────────────────────────────────────
   const PlayPauseOverlay = () =>
     overlayIcon ? (
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -217,6 +217,7 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
       className="w-full h-full object-cover"
       loop
       playsInline
+      webkit-playsinline="true"
       autoPlay={isActive}
       preload="auto"
       onTimeUpdate={handleTimeUpdate}
@@ -227,7 +228,7 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
   if (isDesktop) {
     return (
       <div
-        className="video-snap-item flex items-center justify-center relative"
+        className="video-item flex items-center justify-center relative"
         style={{ height: "100dvh", background: "var(--bg-primary)" }}
       >
         {/* 9:16 frame */}
@@ -305,7 +306,7 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
   // ─── MOBILE layout ─────────────────────────────────────────────
   return (
     <div
-      className="relative w-screen h-screen overflow-hidden bg-black"
+      className="relative w-screen h-screen overflow-hidden bg-black video-item"
       style={{ height: "100dvh" }}
       onClick={togglePlay}
     >

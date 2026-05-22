@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Heart, MessageCircle, Share2, Bookmark, Music } from 'lucide-react';
 import { Video } from '@/types/video';
 import { formatCount } from '@/data/mockVideos';
@@ -15,16 +15,28 @@ export default function ActionButtons({ video }: ActionButtonsProps) {
   const [likeCount, setLikeCount] = useState(video.likesCount);
   const [likeAnimating, setLikeAnimating] = useState(false);
 
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const handleLike = () => {
-    setLikeAnimating(true);
-    if (liked) {
-      setLikeCount((c) => c - 1);
-    } else {
-      setLikeCount((c) => c + 1);
-    }
-    setLiked(!liked);
-    setTimeout(() => setLikeAnimating(false), 700);
-  };
+  // chặn click liên tục khi đang animate
+  if (likeAnimating) return;
+
+  setLikeAnimating(true);
+
+  setLiked((prev) => {
+    setLikeCount((count) => (prev ? count - 1 : count + 1));
+    return !prev;
+  });
+
+  // clear timeout cũ
+  if (timeoutRef.current) {
+    clearTimeout(timeoutRef.current);
+  }
+
+  timeoutRef.current = setTimeout(() => {
+    setLikeAnimating(false);
+  }, 700);
+};
 
   const ActionBtn = ({
     icon,
