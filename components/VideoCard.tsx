@@ -86,11 +86,14 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
   const toggleMute = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const vid = videoRef.current;
-    if (!vid) return;
-    const next = !vid.muted;
-    vid.muted = next;
-    setIsMuted(next); // only for icon, doesn't re-render <video>
+    if (!videoRef.current) {
+      console.warn("Video ref chưa sẵn sàng!");
+      return;
+    }
+    console.log("Toggling mute. Current state:", isMuted);
+
+    // Chỉ cập nhật state, không đụng vào DOM trực tiếp
+    setIsMuted((prev) => !prev);
   }, []);
 
   const handleTimeUpdate = useCallback(() => {
@@ -131,9 +134,11 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
 
   const MuteBtn = ({ onClick }: { onClick: (e: React.MouseEvent) => void }) => (
     <button
-      onClick={onClick}
+      onPointerDown={(e) => {
+        e.stopPropagation(); // Chặn lan truyền lên cha ngay lập tức
+        onClick(e as any);
+      }}
       onMouseDown={(e) => {
-        e.preventDefault();
         e.stopPropagation();
       }}
       onTouchStart={(e) => {
@@ -147,6 +152,8 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
         WebkitTapHighlightColor: "transparent",
         touchAction: "manipulation",
         userSelect: "none",
+        zIndex: 10,
+        position: "relative",
       }}
     >
       {isMuted ? (
@@ -229,6 +236,7 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
       `}
       loop
       playsInline
+      muted={isMuted}
       webkit-playsinline="true"
       autoPlay={isActive}
       preload="auto"
@@ -296,7 +304,12 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
           </div>
 
           {/* Mute — top right */}
-          <div className="absolute top-4 right-4">
+          <div
+            className="absolute top-4 right-4 z-10"
+            onClick={() => {
+              console.log("Anh DoMIXI", isMuted);
+            }}
+          >
             <MuteBtn onClick={toggleMute} />
           </div>
         </div>
@@ -328,11 +341,15 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
 
       {/* Mute — top right */}
       <div
-        className="absolute top-12 right-4"
+        className="absolute top-12 right-4 z-10"
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <MuteBtn onClick={toggleMute} />
+        <MuteBtn
+          onClick={(e) => {
+            toggleMute(e);
+          }}
+        />
       </div>
 
       {/* Info — bottom left */}
