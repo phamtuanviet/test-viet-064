@@ -18,6 +18,13 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
   const [isDesktop, setIsDesktop] = useState(false);
   const [overlayIcon, setOverlayIcon] = useState<"play" | "pause" | null>(null);
   const playIconTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isVertical, setIsVertical] = useState(true);
+
+  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+
+    setIsVertical(video.videoHeight >= video.videoWidth);
+  };
 
   // Detect screen size on client only (avoids SSR mismatch)
   useEffect(() => {
@@ -212,9 +219,14 @@ export default function VideoCard({ video, isActive }: VideoCardProps) {
   // ─── Single <video> element ────────────────────────────────────
   const videoEl = (
     <video
+      onLoadedMetadata={handleLoadedMetadata}
       ref={setVideoRef}
       src={video.videoUrl}
-      className="w-full h-full object-cover"
+      className={`
+        absolute inset-0
+        w-full h-full
+        ${isVertical ? "object-cover" : "object-contain"}
+      `}
       loop
       playsInline
       webkit-playsinline="true"
